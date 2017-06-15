@@ -1,11 +1,26 @@
-FROM ubuntu:14.04.2
+FROM buildpack-deps:jessie-curl
 
-MAINTAINER support@shiyanlou.com
+RUN set -ex && \
+    for key in \
+        05CE15085FC09D18E99EFB22684A14CF2582E0C5 ; \
+    do \
+        gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || \
+        gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
+        gpg --keyserver keyserver.pgp.com --recv-keys "$key" ; \
+    done
 
-RUN useradd -m trylab
+ENV INFLUXDB_VERSION 1.2.4
+RUN wget -q https://dl.influxdata.com/influxdb/releases/influxdb_${INFLUXDB_VERSION}_amd64.deb.asc && \
+    wget -q https://dl.influxdata.com/influxdb/releases/influxdb_${INFLUXDB_VERSION}_amd64.deb && \
+    gpg --batch --verify influxdb_${INFLUXDB_VERSION}_amd64.deb.asc influxdb_${INFLUXDB_VERSION}_amd64.deb && \
+    dpkg -i influxdb_${INFLUXDB_VERSION}_amd64.deb && \
+    rm -f influxdb_${INFLUXDB_VERSION}_amd64.deb*
+COPY influxdb.conf /etc/influxdb/influxdb.conf
 
-USER trylab
+EXPOSE 8086
 
-WORKDIR /home/trylab
+VOLUME /var/lib/influxdb
 
-CMD echo "shiyanlou trylab." | wc -
+COPY entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["influxd"]
